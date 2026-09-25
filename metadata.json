@@ -1,0 +1,6 @@
+{
+  "name": "ABC School Management System",
+  "description": "Comprehensive, secure, and production-ready School Management Information System (SMIS) for ABC School, Pakistan with student admissions, academics, staff, attendance, exams, fees, paper generator, and AI question builder.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

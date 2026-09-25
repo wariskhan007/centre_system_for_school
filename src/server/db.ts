@@ -1,0 +1,1109 @@
+import fs from 'fs';
+import path from 'path';
+import {
+  AcademicYear,
+  AdmissionApplication,
+  AttendanceRecord,
+  AuditLog,
+  Exam,
+  ExamSubjectSchedule,
+  FeeCategory,
+  FeeInvoice,
+  FeePayment,
+  MarkRecord,
+  NotificationItem,
+  QuestionBankItem,
+  QuestionPaper,
+  SchoolClass,
+  SchoolSettings,
+  Section,
+  Staff,
+  Student,
+  StudentAcademicRecord,
+  Subject,
+  TransferMigrationRecord,
+  User,
+  WithdrawalRecord,
+} from '../types/index.ts';
+
+export interface DatabaseSchema {
+  settings: SchoolSettings;
+  academicYears: AcademicYear[];
+  classes: SchoolClass[];
+  sections: Section[];
+  subjects: Subject[];
+  users: User[];
+  students: Student[];
+  studentAcademicRecords: StudentAcademicRecord[];
+  admissions: AdmissionApplication[];
+  withdrawals: WithdrawalRecord[];
+  transfers: TransferMigrationRecord[];
+  staff: Staff[];
+  attendance: AttendanceRecord[];
+  exams: Exam[];
+  examSchedules: ExamSubjectSchedule[];
+  marks: MarkRecord[];
+  feeCategories: FeeCategory[];
+  feeInvoices: FeeInvoice[];
+  feePayments: FeePayment[];
+  questionBank: QuestionBankItem[];
+  questionPapers: QuestionPaper[];
+  auditLogs: AuditLog[];
+  notifications: NotificationItem[];
+}
+
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const DB_FILE = path.join(DATA_DIR, 'database.json');
+
+const INITIAL_SETTINGS: SchoolSettings = {
+  name: 'Splended Education System',
+  address: 'Gandi Chowk Lakki Marwat',
+  country: 'Pakistan',
+  province: 'Khyber Pakhtunkhwa',
+  district: 'Lakki Marwat',
+  tehsil: 'Lakki Marwat',
+  emisCode: '25010492',
+  phone: '+92 969 510000',
+  email: 'info@ses.edu.pk',
+  website: 'https://ses.edu.pk',
+  logo: '',
+  defaultCurrency: 'PKR',
+  currentAcademicYearId: 'ay-2026-2027',
+  admissionPrefix: 'SES-2026',
+  studentIdPrefix: 'SES-STU',
+  employeeIdPrefix: 'EMP',
+  receiptPrefix: 'SES-REC',
+  certificatePrefix: 'SES-CERT',
+  paperHeaderInstructions: 'Attempt all questions. Overwriting or cutting will be considered incorrect. Write answers clearly.',
+  passingPercentage: 33,
+};
+
+const INITIAL_ACADEMIC_YEARS: AcademicYear[] = [
+  {
+    id: 'ay-2025-2026',
+    name: '2025-2026',
+    startDate: '2025-04-01',
+    endDate: '2026-03-31',
+    status: 'closed',
+    isCurrent: false,
+  },
+  {
+    id: 'ay-2026-2027',
+    name: '2026-2027',
+    startDate: '2026-04-01',
+    endDate: '2027-03-31',
+    status: 'active',
+    isCurrent: true,
+  },
+];
+
+const INITIAL_CLASSES: SchoolClass[] = [
+  { id: 'cls-pg', name: 'Playgroup', numericOrder: 0, level: 'Pre-School' },
+  { id: 'cls-nur', name: 'Nursery', numericOrder: 1, level: 'Pre-School' },
+  { id: 'cls-prep', name: 'Prep', numericOrder: 2, level: 'Pre-School' },
+  { id: 'cls-1', name: 'Class 1', numericOrder: 3, level: 'Primary' },
+  { id: 'cls-2', name: 'Class 2', numericOrder: 4, level: 'Primary' },
+  { id: 'cls-3', name: 'Class 3', numericOrder: 5, level: 'Primary' },
+  { id: 'cls-4', name: 'Class 4', numericOrder: 6, level: 'Primary' },
+  { id: 'cls-5', name: 'Class 5', numericOrder: 7, level: 'Primary' },
+  { id: 'cls-6', name: 'Class 6', numericOrder: 8, level: 'Middle' },
+  { id: 'cls-7', name: 'Class 7', numericOrder: 9, level: 'Middle' },
+  { id: 'cls-8', name: 'Class 8', numericOrder: 10, level: 'Middle' },
+  { id: 'cls-9', name: 'Class 9 (SSC-I)', numericOrder: 11, level: 'High / SSC' },
+  { id: 'cls-10', name: 'Class 10 (SSC-II)', numericOrder: 12, level: 'High / SSC' },
+  { id: 'cls-11', name: 'Class 11 (HSSC-I)', numericOrder: 13, level: 'Intermediate / HSSC' },
+  { id: 'cls-12', name: 'Class 12 (HSSC-II)', numericOrder: 14, level: 'Intermediate / HSSC' },
+];
+
+const INITIAL_SECTIONS: Section[] = [
+  { id: 'sec-9a', classId: 'cls-9', name: 'Section A (Jinnah)', capacity: 40 },
+  { id: 'sec-9b', classId: 'cls-9', name: 'Section B (Iqbal)', capacity: 40 },
+  { id: 'sec-10a', classId: 'cls-10', name: 'Section A (Jinnah)', capacity: 40 },
+  { id: 'sec-10b', classId: 'cls-10', name: 'Section B (Iqbal)', capacity: 40 },
+  { id: 'sec-8a', classId: 'cls-8', name: 'Section A', capacity: 35 },
+  { id: 'sec-7a', classId: 'cls-7', name: 'Section A', capacity: 35 },
+  { id: 'sec-6a', classId: 'cls-6', name: 'Section A', capacity: 35 },
+  { id: 'sec-5a', classId: 'cls-5', name: 'Section A', capacity: 30 },
+];
+
+const INITIAL_SUBJECTS: Subject[] = [
+  { id: 'sub-eng', name: 'English Compulsory', code: 'ENG', totalMarks: 100, passingMarks: 33 },
+  { id: 'sub-urd', name: 'Urdu Compulsory', code: 'URD', totalMarks: 100, passingMarks: 33 },
+  { id: 'sub-mth', name: 'Mathematics', code: 'MTH', totalMarks: 100, passingMarks: 33 },
+  { id: 'sub-isl', name: 'Islamiyat (Islamic Studies)', code: 'ISL', totalMarks: 50, passingMarks: 17 },
+  { id: 'sub-pak', name: 'Pakistan Studies', code: 'PAK', totalMarks: 50, passingMarks: 17 },
+  { id: 'sub-phy', name: 'Physics', code: 'PHY', totalMarks: 100, passingMarks: 33 },
+  { id: 'sub-chm', name: 'Chemistry', code: 'CHM', totalMarks: 100, passingMarks: 33 },
+  { id: 'sub-bio', name: 'Biology', code: 'BIO', totalMarks: 100, passingMarks: 33 },
+  { id: 'sub-cs', name: 'Computer Science', code: 'CS', totalMarks: 100, passingMarks: 33 },
+  { id: 'sub-sci', name: 'General Science', code: 'GSCI', totalMarks: 100, passingMarks: 33 },
+];
+
+const INITIAL_USERS: User[] = [
+  {
+    id: 'usr-admin',
+    name: 'Waris Khan',
+    email: 'admin@abcschool.edu.pk',
+    username: 'admin',
+    role: 'Super Administrator',
+    permissions: [
+      'view',
+      'create',
+      'edit',
+      'delete',
+      'export',
+      'print',
+      'approve',
+      'manage_users',
+      'manage_settings',
+      'view_financial',
+      'view_confidential',
+      'generate_reports',
+      'manage_exams',
+    ],
+    phone: '+92 300 1234567',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'usr-principal',
+    name: 'Prof. Tariq Mehmood',
+    email: 'principal@abcschool.edu.pk',
+    username: 'principal',
+    role: 'Principal / Head Teacher',
+    permissions: [
+      'view',
+      'create',
+      'edit',
+      'export',
+      'print',
+      'approve',
+      'view_financial',
+      'view_confidential',
+      'generate_reports',
+      'manage_exams',
+    ],
+    status: 'active',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'usr-teacher',
+    name: 'Syed Usman Shah',
+    email: 'teacher@abcschool.edu.pk',
+    username: 'teacher',
+    role: 'Teacher',
+    permissions: ['view', 'create', 'edit', 'print', 'manage_exams'],
+    status: 'active',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'usr-accountant',
+    name: 'Bilal Ahmad',
+    email: 'accountant@abcschool.edu.pk',
+    username: 'accountant',
+    role: 'Accountant',
+    permissions: ['view', 'create', 'edit', 'print', 'export', 'view_financial', 'generate_reports'],
+    status: 'active',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'usr-exam',
+    name: 'Khurram Jamil',
+    email: 'exam@abcschool.edu.pk',
+    username: 'exam_officer',
+    role: 'Examination Officer',
+    permissions: ['view', 'create', 'edit', 'print', 'export', 'manage_exams', 'generate_reports'],
+    status: 'active',
+    createdAt: new Date().toISOString(),
+  },
+];
+
+const INITIAL_FEE_CATEGORIES: FeeCategory[] = [
+  { id: 'fee-cat-monthly', name: 'Monthly Tuition Fee', code: 'TUI', defaultAmount: 4500, frequency: 'Monthly' },
+  { id: 'fee-cat-adm', name: 'Admission & Registration Fee', code: 'ADM', defaultAmount: 10000, frequency: 'One-Time' },
+  { id: 'fee-cat-exam', name: 'Examination & Board Fee', code: 'EXM', defaultAmount: 2500, frequency: 'Term' },
+  { id: 'fee-cat-trans', name: 'Transport / Bus Fee', code: 'TRN', defaultAmount: 3000, frequency: 'Monthly' },
+  { id: 'fee-cat-sci', name: 'Science Laboratory Fee', code: 'LAB', defaultAmount: 1500, frequency: 'Annual' },
+];
+
+export class Database {
+  private data: DatabaseSchema;
+
+  constructor() {
+    this.data = this.loadDatabase();
+  }
+
+  private loadDatabase(): DatabaseSchema {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+
+      if (fs.existsSync(DB_FILE)) {
+        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed.settings && (parsed.settings.name === 'ABC School' || parsed.settings.name === 'ABC SCHOOL')) {
+          parsed.settings.name = INITIAL_SETTINGS.name;
+          parsed.settings.address = INITIAL_SETTINGS.address;
+          parsed.settings.province = INITIAL_SETTINGS.province;
+          parsed.settings.district = INITIAL_SETTINGS.district;
+          parsed.settings.tehsil = INITIAL_SETTINGS.tehsil;
+          parsed.settings.emisCode = INITIAL_SETTINGS.emisCode;
+          parsed.settings.phone = INITIAL_SETTINGS.phone;
+          parsed.settings.email = INITIAL_SETTINGS.email;
+          parsed.settings.website = INITIAL_SETTINGS.website;
+        }
+        return {
+          settings: parsed.settings || INITIAL_SETTINGS,
+          academicYears: parsed.academicYears || INITIAL_ACADEMIC_YEARS,
+          classes: parsed.classes || INITIAL_CLASSES,
+          sections: parsed.sections || INITIAL_SECTIONS,
+          subjects: parsed.subjects || INITIAL_SUBJECTS,
+          users: parsed.users || INITIAL_USERS,
+          students: parsed.students || [],
+          studentAcademicRecords: parsed.studentAcademicRecords || [],
+          admissions: parsed.admissions || [],
+          withdrawals: parsed.withdrawals || [],
+          transfers: parsed.transfers || [],
+          staff: parsed.staff || [],
+          attendance: parsed.attendance || [],
+          exams: parsed.exams || [],
+          examSchedules: parsed.examSchedules || [],
+          marks: parsed.marks || [],
+          feeCategories: parsed.feeCategories || INITIAL_FEE_CATEGORIES,
+          feeInvoices: parsed.feeInvoices || [],
+          feePayments: parsed.feePayments || [],
+          questionBank: parsed.questionBank || [],
+          questionPapers: parsed.questionPapers || [],
+          auditLogs: parsed.auditLogs || [],
+          notifications: parsed.notifications || [],
+        };
+      }
+    } catch (err) {
+      console.error('Failed to load database file, bootstrapping clean store', err);
+    }
+
+    const defaultState: DatabaseSchema = {
+      settings: INITIAL_SETTINGS,
+      academicYears: INITIAL_ACADEMIC_YEARS,
+      classes: INITIAL_CLASSES,
+      sections: INITIAL_SECTIONS,
+      subjects: INITIAL_SUBJECTS,
+      users: INITIAL_USERS,
+      students: [],
+      studentAcademicRecords: [],
+      admissions: [],
+      withdrawals: [],
+      transfers: [],
+      staff: [],
+      attendance: [],
+      exams: [],
+      examSchedules: [],
+      marks: [],
+      feeCategories: INITIAL_FEE_CATEGORIES,
+      feeInvoices: [],
+      feePayments: [],
+      questionBank: [],
+      questionPapers: [],
+      auditLogs: [],
+      notifications: [],
+    };
+    this.saveDatabase(defaultState);
+    return defaultState;
+  }
+
+  public saveDatabase(dataToSave?: DatabaseSchema): void {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const data = dataToSave || this.data;
+      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving database to file', err);
+    }
+  }
+
+  public getData(): DatabaseSchema {
+    return this.data;
+  }
+
+  // Audit Logger
+  public logAudit(
+    userId: string,
+    userName: string,
+    userRole: string,
+    action: string,
+    entity: string,
+    entityId: string,
+    details: string
+  ): void {
+    const log: AuditLog = {
+      id: 'log-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      timestamp: new Date().toISOString(),
+      userId,
+      userName,
+      userRole,
+      action,
+      entity,
+      entityId,
+      details,
+    };
+    this.data.auditLogs.unshift(log);
+    // Keep last 1500 logs max
+    if (this.data.auditLogs.length > 1500) {
+      this.data.auditLogs.pop();
+    }
+    this.saveDatabase();
+  }
+
+  // Add Notification
+  public addNotification(
+    title: string,
+    message: string,
+    category: NotificationItem['category'],
+    link?: string
+  ): void {
+    const notif: NotificationItem = {
+      id: 'notif-' + Date.now(),
+      title,
+      message,
+      category,
+      timestamp: new Date().toISOString(),
+      read: false,
+      link,
+    };
+    this.data.notifications.unshift(notif);
+    if (this.data.notifications.length > 200) {
+      this.data.notifications.pop();
+    }
+    this.saveDatabase();
+  }
+
+  // Seed Demo Data for full test & preview
+  public seedDemoData(): void {
+    // Generate realistic Pakistani school records
+    const sampleStaff: Staff[] = [
+      {
+        id: 'stf-01',
+        employeeId: 'EMP-0101',
+        name: 'Prof. Tariq Mehmood',
+        fatherOrHusbandName: 'Muhammad Mehmood',
+        dob: '1975-06-15',
+        gender: 'Male',
+        cnic: '17301-1234567-1',
+        contact: '+92 300 5551234',
+        email: 'tariq.principal@abcschool.edu.pk',
+        address: 'House # 12, Street 4, University Town, Peshawar, KP',
+        qualification: 'M.Sc. Mathematics (UoP), M.Ed, M.Phil',
+        designation: 'Principal',
+        department: 'Administration',
+        category: 'Administration',
+        bpsPayScale: 'BPS-19',
+        joiningDate: '2015-08-01',
+        employmentType: 'Permanent',
+        subjectSpecialization: 'Mathematics',
+        assignedClassIds: ['cls-10'],
+        assignedSectionIds: ['sec-10a'],
+        emergencyContact: '0300-5559876 (Wife)',
+        status: 'Active',
+        createdAt: '2015-08-01T08:00:00Z',
+      },
+      {
+        id: 'stf-02',
+        employeeId: 'EMP-0102',
+        name: 'Syed Usman Shah',
+        fatherOrHusbandName: 'Syed Anwar Shah',
+        dob: '1984-03-22',
+        gender: 'Male',
+        cnic: '17301-2345678-3',
+        contact: '+92 333 4445566',
+        email: 'usman.physics@abcschool.edu.pk',
+        address: 'Hayatabad Phase 3, Peshawar',
+        qualification: 'M.Sc. Physics (UoP), B.Ed',
+        designation: 'Senior Science Teacher (Physics)',
+        department: 'Science',
+        category: 'Teaching Staff',
+        bpsPayScale: 'BPS-17',
+        joiningDate: '2018-09-15',
+        employmentType: 'Permanent',
+        subjectSpecialization: 'Physics',
+        assignedClassIds: ['cls-9', 'cls-10'],
+        assignedSectionIds: ['sec-9a', 'sec-10a'],
+        emergencyContact: '0333-1112233',
+        status: 'Active',
+        createdAt: '2018-09-15T08:00:00Z',
+      },
+      {
+        id: 'stf-03',
+        employeeId: 'EMP-0103',
+        name: 'Mrs. Saima Noreen',
+        fatherOrHusbandName: 'Dr. Rashid Khan',
+        dob: '1988-11-10',
+        gender: 'Female',
+        cnic: '17301-3456789-2',
+        contact: '+92 345 9876543',
+        email: 'saima.english@abcschool.edu.pk',
+        address: 'Defence Officers Colony, Peshawar Cantt',
+        qualification: 'M.A. English Literature (NUML), CELTA',
+        designation: 'Subject Specialist (English)',
+        department: 'Humanities & Languages',
+        category: 'Teaching Staff',
+        bpsPayScale: 'BPS-17',
+        joiningDate: '2019-02-01',
+        employmentType: 'Permanent',
+        subjectSpecialization: 'English Compulsory',
+        assignedClassIds: ['cls-9', 'cls-10'],
+        assignedSectionIds: ['sec-9a', 'sec-9b'],
+        status: 'Active',
+        createdAt: '2019-02-01T08:00:00Z',
+      },
+      {
+        id: 'stf-04',
+        employeeId: 'EMP-0104',
+        name: 'Muhammad Bilal Khan',
+        fatherOrHusbandName: 'Abdul Qayyum',
+        dob: '1990-05-18',
+        gender: 'Male',
+        cnic: '17301-4567890-5',
+        contact: '+92 312 9998877',
+        email: 'bilal.accounts@abcschool.edu.pk',
+        address: 'Gulbahar Colony, Peshawar',
+        qualification: 'M.Com, ACCA Finalist',
+        designation: 'Senior Accountant / Bursar',
+        department: 'Accounts & Finance',
+        category: 'Non-Teaching Staff',
+        bpsPayScale: 'BPS-16',
+        joiningDate: '2020-01-10',
+        employmentType: 'Permanent',
+        assignedClassIds: [],
+        assignedSectionIds: [],
+        status: 'Active',
+        createdAt: '2020-01-10T08:00:00Z',
+      },
+    ];
+
+    const sampleStudents: Student[] = [
+      {
+        id: 'STU-2026-0001',
+        admissionNumber: 'ABC-2026-0001',
+        rollNumber: '1',
+        fullName: 'Muhammad Hamza Khan',
+        dob: '2010-04-12',
+        gender: 'Male',
+        bloodGroup: 'B+',
+        nationality: 'Pakistani',
+        religion: 'Islam',
+        bFormNumber: '17301-1122334-1',
+        fatherName: 'Iftikhar Ahmad Khan',
+        fatherCnic: '17301-9988776-1',
+        fatherContact: '+92 301 8877665',
+        fatherOccupation: 'Civil Engineer (C&W Dept)',
+        motherName: 'Nadia Iftikhar',
+        motherCnic: '17301-8877665-2',
+        motherContact: '+92 301 8877666',
+        houseStreet: 'House # 45, Street 2',
+        mohalla: 'Sector D-2, Phase 1',
+        villageCity: 'Hayatabad, Peshawar',
+        tehsil: 'Peshawar City',
+        district: 'Peshawar',
+        province: 'Khyber Pakhtunkhwa',
+        postalCode: '25000',
+        admissionDate: '2024-04-01',
+        admissionClassId: 'cls-8',
+        currentClassId: 'cls-9',
+        currentSectionId: 'sec-9a',
+        currentAcademicYearId: 'ay-2026-2027',
+        previousSchool: 'Peshawar Model School',
+        previousClass: 'Class 8',
+        previousResult: '89.4% (Grade A1)',
+        status: 'active',
+        emergencyContact: 'Iftikhar Ahmad Khan (Father)',
+        emergencyRelation: 'Father',
+        emergencyPhone: '+92 301 8877665',
+        remarks: 'Excellent student, actively participates in Science Olympiad',
+        createdAt: '2024-04-01T08:00:00Z',
+        updatedAt: '2026-04-01T08:00:00Z',
+      },
+      {
+        id: 'STU-2026-0002',
+        admissionNumber: 'ABC-2026-0002',
+        rollNumber: '2',
+        fullName: 'Fatima Zahra',
+        dob: '2011-08-25',
+        gender: 'Female',
+        bloodGroup: 'O+',
+        nationality: 'Pakistani',
+        religion: 'Islam',
+        bFormNumber: '17301-2233445-2',
+        fatherName: 'Dr. Zulfiqar Ali',
+        fatherCnic: '17301-7766554-3',
+        fatherContact: '+92 333 9123456',
+        fatherOccupation: 'Medical Specialist, LRH Peshawar',
+        motherName: 'Dr. Hina Zulfiqar',
+        motherCnic: '17301-6655443-4',
+        houseStreet: 'Bungalow 18-A',
+        mohalla: 'Warsak Road',
+        villageCity: 'Peshawar Cantt',
+        tehsil: 'Peshawar Cantt',
+        district: 'Peshawar',
+        province: 'Khyber Pakhtunkhwa',
+        postalCode: '25000',
+        admissionDate: '2024-04-01',
+        admissionClassId: 'cls-8',
+        currentClassId: 'cls-9',
+        currentSectionId: 'sec-9a',
+        currentAcademicYearId: 'ay-2026-2027',
+        previousSchool: 'Army Public School Peshawar',
+        previousClass: 'Class 8',
+        previousResult: '92.6% (Grade A1)',
+        status: 'active',
+        emergencyContact: 'Dr. Zulfiqar Ali',
+        emergencyRelation: 'Father',
+        emergencyPhone: '+92 333 9123456',
+        remarks: 'Class proctor and debate champion',
+        createdAt: '2024-04-01T08:00:00Z',
+        updatedAt: '2026-04-01T08:00:00Z',
+      },
+      {
+        id: 'STU-2026-0003',
+        admissionNumber: 'ABC-2026-0003',
+        rollNumber: '3',
+        fullName: 'Syed Bilal Shah',
+        dob: '2010-01-15',
+        gender: 'Male',
+        bloodGroup: 'A+',
+        nationality: 'Pakistani',
+        religion: 'Islam',
+        bFormNumber: '17301-3344556-3',
+        fatherName: 'Syed Murtaza Shah',
+        fatherCnic: '17301-5544332-1',
+        fatherContact: '+92 345 5566778',
+        fatherOccupation: 'Businessman / Textile Trading',
+        houseStreet: 'Street 5, Kohat Road',
+        villageCity: 'Peshawar',
+        tehsil: 'Peshawar City',
+        district: 'Peshawar',
+        province: 'Khyber Pakhtunkhwa',
+        admissionDate: '2024-04-01',
+        admissionClassId: 'cls-8',
+        currentClassId: 'cls-9',
+        currentSectionId: 'sec-9a',
+        currentAcademicYearId: 'ay-2026-2027',
+        status: 'active',
+        emergencyContact: 'Syed Murtaza Shah',
+        emergencyRelation: 'Father',
+        emergencyPhone: '+92 345 5566778',
+        createdAt: '2024-04-01T08:00:00Z',
+        updatedAt: '2026-04-01T08:00:00Z',
+      },
+      {
+        id: 'STU-2026-0004',
+        admissionNumber: 'ABC-2026-0004',
+        rollNumber: '4',
+        fullName: 'Ayesha Noor',
+        dob: '2010-09-05',
+        gender: 'Female',
+        bloodGroup: 'AB+',
+        nationality: 'Pakistani',
+        religion: 'Islam',
+        bFormNumber: '17301-4455667-4',
+        fatherName: 'Noor Muhammad',
+        fatherCnic: '17301-4433221-5',
+        fatherContact: '+92 313 1239874',
+        fatherOccupation: 'Professor of Chemistry',
+        houseStreet: 'Staff Colony, University of Peshawar',
+        villageCity: 'Peshawar',
+        tehsil: 'Peshawar',
+        district: 'Peshawar',
+        province: 'Khyber Pakhtunkhwa',
+        admissionDate: '2025-04-01',
+        admissionClassId: 'cls-9',
+        currentClassId: 'cls-10',
+        currentSectionId: 'sec-10a',
+        currentAcademicYearId: 'ay-2026-2027',
+        status: 'active',
+        emergencyContact: 'Noor Muhammad',
+        emergencyRelation: 'Father',
+        emergencyPhone: '+92 313 1239874',
+        createdAt: '2025-04-01T08:00:00Z',
+        updatedAt: '2026-04-01T08:00:00Z',
+      },
+      {
+        id: 'STU-2026-0005',
+        admissionNumber: 'ABC-2025-0089',
+        rollNumber: '18',
+        fullName: 'Abdullah Jan',
+        dob: '2009-12-01',
+        gender: 'Male',
+        bloodGroup: 'B-',
+        nationality: 'Pakistani',
+        religion: 'Islam',
+        bFormNumber: '17301-5566778-5',
+        fatherName: 'Jan Muhammad',
+        fatherCnic: '17301-3322110-7',
+        fatherContact: '+92 300 8765432',
+        fatherOccupation: 'Government Servant',
+        houseStreet: 'Phase 2, Hayatabad',
+        villageCity: 'Peshawar',
+        tehsil: 'Peshawar',
+        district: 'Peshawar',
+        province: 'Khyber Pakhtunkhwa',
+        admissionDate: '2023-04-01',
+        admissionClassId: 'cls-8',
+        currentClassId: 'cls-9',
+        currentSectionId: 'sec-9b',
+        currentAcademicYearId: 'ay-2026-2027',
+        status: 'withdrawn',
+        emergencyContact: 'Jan Muhammad',
+        emergencyRelation: 'Father',
+        emergencyPhone: '+92 300 8765432',
+        remarks: 'Withdrawn due to father transfer to Islamabad Capital Territory',
+        createdAt: '2023-04-01T08:00:00Z',
+        updatedAt: '2026-08-15T08:00:00Z',
+      },
+    ];
+
+    const sampleWithdrawal: WithdrawalRecord = {
+      id: 'wth-001',
+      studentId: 'STU-2026-0005',
+      admissionNumber: 'ABC-2025-0089',
+      studentName: 'Abdullah Jan',
+      currentClassId: 'cls-9',
+      currentSectionId: 'sec-9b',
+      withdrawalDate: '2026-08-15',
+      lastAttendanceDate: '2026-08-12',
+      reason: 'Family relocation',
+      destinationSchool: 'Islamabad Model College for Boys, F-8/4, Islamabad',
+      parentRequest: true,
+      principalApprovedBy: 'Prof. Tariq Mehmood',
+      certificateNumber: 'SLC-2026-0012',
+      remarks: 'All school dues cleared. Security deposit refunded.',
+      createdAt: '2026-08-15T10:00:00Z',
+    };
+
+    const sampleAdmissions: AdmissionApplication[] = [
+      {
+        id: 'adm-app-001',
+        applicationNo: 'APP-2026-042',
+        applicantName: 'Danyal Zahid',
+        fatherName: 'Zahid Hussain',
+        fatherContact: '+92 321 7766554',
+        fatherCnic: '17301-6677889-1',
+        dob: '2011-03-10',
+        gender: 'Male',
+        desiredClassId: 'cls-9',
+        previousSchool: 'Frontier Science Academy',
+        bFormNumber: '17301-9900112-3',
+        applicationDate: '2026-09-10',
+        stage: 'Admission Approved',
+        notes: 'Passed entrance test with 84/100 marks. Interview cleared.',
+      },
+      {
+        id: 'adm-app-002',
+        applicationNo: 'APP-2026-043',
+        applicantName: 'Zainab Bibi',
+        fatherName: 'Munir Ahmad',
+        fatherContact: '+92 302 3344556',
+        fatherCnic: '17301-1122998-4',
+        dob: '2012-07-19',
+        gender: 'Female',
+        desiredClassId: 'cls-8',
+        previousSchool: 'St. Mary High School',
+        bFormNumber: '17301-8899001-2',
+        applicationDate: '2026-09-18',
+        stage: 'Verification',
+        notes: 'Awaiting verified previous school character certificate and B-Form copy.',
+      },
+    ];
+
+    const sampleFeeInvoices: FeeInvoice[] = [
+      {
+        id: 'inv-2026-0901',
+        invoiceNo: 'REC-2026-0901',
+        studentId: 'STU-2026-0001',
+        academicYearId: 'ay-2026-2027',
+        month: 'September 2026',
+        issueDate: '2026-09-01',
+        dueDate: '2026-09-15',
+        tuitionFee: 4500,
+        examFee: 0,
+        transportFee: 3000,
+        fineAmount: 0,
+        discountAmount: 500,
+        netPayable: 7000,
+        paidAmount: 7000,
+        remainingAmount: 0,
+        status: 'Paid',
+        paymentDate: '2026-09-08',
+      },
+      {
+        id: 'inv-2026-0902',
+        invoiceNo: 'REC-2026-0902',
+        studentId: 'STU-2026-0002',
+        academicYearId: 'ay-2026-2027',
+        month: 'September 2026',
+        issueDate: '2026-09-01',
+        dueDate: '2026-09-15',
+        tuitionFee: 4500,
+        transportFee: 0,
+        fineAmount: 0,
+        discountAmount: 0,
+        netPayable: 4500,
+        paidAmount: 4500,
+        remainingAmount: 0,
+        status: 'Paid',
+        paymentDate: '2026-09-10',
+      },
+      {
+        id: 'inv-2026-0903',
+        invoiceNo: 'REC-2026-0903',
+        studentId: 'STU-2026-0003',
+        academicYearId: 'ay-2026-2027',
+        month: 'September 2026',
+        issueDate: '2026-09-01',
+        dueDate: '2026-09-15',
+        tuitionFee: 4500,
+        fineAmount: 200,
+        netPayable: 4700,
+        paidAmount: 0,
+        remainingAmount: 4700,
+        status: 'Overdue',
+      },
+    ];
+
+    const samplePayments: FeePayment[] = [
+      {
+        id: 'pay-001',
+        receiptNo: 'RCP-2026-001',
+        invoiceId: 'inv-2026-0901',
+        studentId: 'STU-2026-0001',
+        amountPaid: 7000,
+        paymentDate: '2026-09-08',
+        paymentMethod: 'Bank Transfer',
+        bankReference: 'HBL-FT-99882211',
+        receivedBy: 'Bilal Ahmad (Accountant)',
+        remarks: 'Transferred to School HBL Account # 01234567890123',
+      },
+      {
+        id: 'pay-002',
+        receiptNo: 'RCP-2026-002',
+        invoiceId: 'inv-2026-0902',
+        studentId: 'STU-2026-0002',
+        amountPaid: 4500,
+        paymentDate: '2026-09-10',
+        paymentMethod: 'EasyPaisa',
+        bankReference: 'EP-44556677',
+        receivedBy: 'Bilal Ahmad (Accountant)',
+        remarks: 'Online fee deposit via EasyPaisa Merchant Till',
+      },
+    ];
+
+    const sampleExam: Exam = {
+      id: 'exm-mid-2026',
+      name: 'Mid-Term Examinations 2026',
+      examType: 'Mid Term',
+      academicYearId: 'ay-2026-2027',
+      classId: 'cls-9',
+      startDate: '2026-10-15',
+      endDate: '2026-10-25',
+      status: 'Scheduled',
+      remarks: 'Comprehensive evaluation covering Term 1 syllabus.',
+    };
+
+    const sampleSchedules: ExamSubjectSchedule[] = [
+      {
+        id: 'exs-01',
+        examId: 'exm-mid-2026',
+        subjectId: 'sub-mth',
+        examDate: '2026-10-15',
+        startTime: '09:00 AM',
+        endTime: '12:00 PM',
+        totalMarks: 100,
+        passingMarks: 33,
+      },
+      {
+        id: 'exs-02',
+        examId: 'exm-mid-2026',
+        subjectId: 'sub-phy',
+        examDate: '2026-10-17',
+        startTime: '09:00 AM',
+        endTime: '12:00 PM',
+        totalMarks: 75,
+        passingMarks: 25,
+      },
+      {
+        id: 'exs-03',
+        examId: 'exm-mid-2026',
+        subjectId: 'sub-eng',
+        examDate: '2026-10-19',
+        startTime: '09:00 AM',
+        endTime: '12:00 PM',
+        totalMarks: 100,
+        passingMarks: 33,
+      },
+    ];
+
+    const sampleMarks: MarkRecord[] = [
+      {
+        id: 'mrk-01',
+        examId: 'exm-mid-2026',
+        examSubjectId: 'exs-01',
+        studentId: 'STU-2026-0001',
+        obtainedMarks: 94,
+        totalMarks: 100,
+        grade: 'A+',
+        remarks: 'Outstanding logical reasoning in Quadratic Equations',
+      },
+      {
+        id: 'mrk-02',
+        examId: 'exm-mid-2026',
+        examSubjectId: 'exs-01',
+        studentId: 'STU-2026-0002',
+        obtainedMarks: 97,
+        totalMarks: 100,
+        grade: 'A+',
+        remarks: 'Highest marks in section',
+      },
+      {
+        id: 'mrk-03',
+        examId: 'exm-mid-2026',
+        examSubjectId: 'exs-01',
+        studentId: 'STU-2026-0003',
+        obtainedMarks: 78,
+        totalMarks: 100,
+        grade: 'A',
+        remarks: 'Good effort, practice word problems',
+      },
+    ];
+
+    const sampleQuestions: QuestionBankItem[] = [
+      {
+        id: 'qb-01',
+        subjectId: 'sub-mth',
+        classId: 'cls-9',
+        chapter: 'Unit 1: Matrices and Determinants',
+        topic: 'Order of Matrix and Inversion Method',
+        difficulty: 'Easy',
+        questionType: 'MCQ',
+        questionText: 'If a matrix has 2 rows and 3 columns, its order is represented as:',
+        options: ['2-by-3', '3-by-2', '2 × 2', '3 × 3'],
+        answer: '2-by-3',
+        explanation: 'Order of a matrix is written as rows-by-columns (m-by-n).',
+        marks: 1,
+        tags: ['matrices', 'board-pattern', 'mcq'],
+        isApproved: true,
+        createdAt: '2026-05-10T10:00:00Z',
+      },
+      {
+        id: 'qb-02',
+        subjectId: 'sub-mth',
+        classId: 'cls-9',
+        chapter: 'Unit 1: Matrices and Determinants',
+        topic: 'Singular and Non-Singular Matrices',
+        difficulty: 'Medium',
+        questionType: 'Short Question',
+        questionText: 'Find the determinant of matrix A = [[4, 2], [5, 3]] and state whether it is singular or non-singular.',
+        answer: '|A| = (4)(3) - (2)(5) = 12 - 10 = 2 ≠ 0. Hence matrix A is non-singular.',
+        marks: 4,
+        tags: ['matrices', 'short-questions'],
+        isApproved: true,
+        createdAt: '2026-05-10T10:00:00Z',
+      },
+      {
+        id: 'qb-03',
+        subjectId: 'sub-mth',
+        classId: 'cls-9',
+        chapter: 'Unit 1: Matrices and Determinants',
+        topic: 'Cramer\'s Rule and Matrix Inversion Method',
+        difficulty: 'Hard',
+        questionType: 'Long Question',
+        questionText: 'Solve the system of linear equations by Cramer\'s Rule:\n2x - 2y = 4\n3x + 2y = 6',
+        answer: 'Using Cramer\'s Rule: |A| = 10, |Ax| = 20 => x = 2, |Ay| = 0 => y = 0. Solution set = {(2, 0)}',
+        marks: 8,
+        tags: ['cramer-rule', 'long-question', 'frequently-asked'],
+        isApproved: true,
+        createdAt: '2026-05-10T10:00:00Z',
+      },
+      {
+        id: 'qb-04',
+        subjectId: 'sub-phy',
+        classId: 'cls-9',
+        chapter: 'Unit 2: Kinematics',
+        topic: 'Equations of Motion',
+        difficulty: 'Medium',
+        questionType: 'Long Question',
+        questionText: 'Derive the second equation of motion (S = vit + 1/2 at^2) with the help of a speed-time graph.',
+        marks: 7,
+        tags: ['kinematics', 'equations-of-motion'],
+        isApproved: true,
+        createdAt: '2026-05-12T10:00:00Z',
+      },
+      {
+        id: 'qb-05',
+        subjectId: 'sub-eng',
+        classId: 'cls-9',
+        chapter: 'Grammar and Composition',
+        topic: 'Active and Passive Voice',
+        difficulty: 'Easy',
+        questionType: 'Short Question',
+        questionText: 'Change into passive voice: "The students solved the difficult mathematics problem."',
+        answer: 'The difficult mathematics problem was solved by the students.',
+        marks: 2,
+        tags: ['grammar', 'active-passive'],
+        isApproved: true,
+        createdAt: '2026-05-14T10:00:00Z',
+      },
+    ];
+
+    const samplePaper: QuestionPaper = {
+      id: 'paper-mth-9th-mid',
+      academicYearId: 'ay-2026-2027',
+      classId: 'cls-9',
+      subjectId: 'sub-mth',
+      examType: 'Mid Term',
+      title: 'Mid-Term Examination 2026 — Mathematics (SSC-I)',
+      totalMarks: 50,
+      durationMinutes: 90,
+      examDate: '2026-10-15',
+      instructions: '1. Write your Roll Number and Name clearly.\n2. Cutting, overwriting, and pencil writing is not allowed in Section A.\n3. Calculator is allowed only where permissible by BISE regulations.',
+      sections: [
+        {
+          id: 'sec-a',
+          title: 'SECTION A — MULTIPLE CHOICE QUESTIONS (Marks: 10)',
+          instructions: 'Attempt all questions. Each question carries 1 mark. Fill the correct circle.',
+          questionIds: [
+            {
+              questionId: 'qb-01',
+              marks: 1,
+              customQuestionText: 'If a matrix has 2 rows and 3 columns, its order is represented as:',
+              options: ['2-by-3', '3-by-2', '2 × 2', '3 × 3'],
+              answer: '2-by-3',
+            },
+            {
+              questionId: 'qb-01b',
+              marks: 1,
+              customQuestionText: 'The additive inverse of matrix [1, -2] is:',
+              options: ['[-1, 2]', '[1, 2]', '[-1, -2]', '[2, -1]'],
+              answer: '[-1, 2]',
+            },
+          ],
+        },
+        {
+          id: 'sec-b',
+          title: 'SECTION B — SHORT QUESTIONS (Marks: 24)',
+          instructions: 'Attempt any SIX questions. Each question carries 4 marks.',
+          questionIds: [
+            {
+              questionId: 'qb-02',
+              marks: 4,
+              customQuestionText: 'Find the determinant of matrix A = [[4, 2], [5, 3]] and state whether it is singular or non-singular.',
+            },
+            {
+              questionId: 'qb-02b',
+              marks: 4,
+              customQuestionText: 'Define an Identity Matrix with suitable example of order 2-by-2.',
+            },
+            {
+              questionId: 'qb-02c',
+              marks: 4,
+              customQuestionText: 'If A = [[2, 1], [0, -1]], find the transpose of matrix A.',
+            },
+          ],
+        },
+        {
+          id: 'sec-c',
+          title: 'SECTION C — LONG / DETAILED QUESTIONS (Marks: 16)',
+          instructions: 'Attempt any TWO questions. Each question carries 8 marks.',
+          questionIds: [
+            {
+              questionId: 'qb-03',
+              marks: 8,
+              customQuestionText: 'Solve the system of linear equations by Cramer\'s Rule:\n2x - 2y = 4\n3x + 2y = 6',
+            },
+          ],
+        },
+      ],
+      status: 'Finalized',
+      createdAt: '2026-09-20T10:00:00Z',
+      updatedAt: '2026-09-20T11:00:00Z',
+    };
+
+    // Today's sample attendance
+    const today = new Date().toISOString().split('T')[0];
+    const sampleAttendance: AttendanceRecord[] = [
+      { id: 'att-01', targetType: 'student', targetId: 'STU-2026-0001', date: today, status: 'Present', classId: 'cls-9', sectionId: 'sec-9a' },
+      { id: 'att-02', targetType: 'student', targetId: 'STU-2026-0002', date: today, status: 'Present', classId: 'cls-9', sectionId: 'sec-9a' },
+      { id: 'att-03', targetType: 'student', targetId: 'STU-2026-0003', date: today, status: 'Absent', remarks: 'Sick leave requested by father', classId: 'cls-9', sectionId: 'sec-9a' },
+      { id: 'att-04', targetType: 'student', targetId: 'STU-2026-0004', date: today, status: 'Present', classId: 'cls-10', sectionId: 'sec-10a' },
+      { id: 'att-05', targetType: 'staff', targetId: 'stf-01', date: today, status: 'Present' },
+      { id: 'att-06', targetType: 'staff', targetId: 'stf-02', date: today, status: 'Present' },
+      { id: 'att-07', targetType: 'staff', targetId: 'stf-03', date: today, status: 'Present' },
+      { id: 'att-08', targetType: 'staff', targetId: 'stf-04', date: today, status: 'Present' },
+    ];
+
+    this.data.staff = sampleStaff;
+    this.data.students = sampleStudents;
+    this.data.withdrawals = [sampleWithdrawal];
+    this.data.admissions = sampleAdmissions;
+    this.data.feeInvoices = sampleFeeInvoices;
+    this.data.feePayments = samplePayments;
+    this.data.exams = [sampleExam];
+    this.data.examSchedules = sampleSchedules;
+    this.data.marks = sampleMarks;
+    this.data.questionBank = sampleQuestions;
+    this.data.questionPapers = [samplePaper];
+    this.data.attendance = sampleAttendance;
+
+    this.logAudit(
+      'usr-admin',
+      'System Administrator',
+      'Super Administrator',
+      'DEMO_DATA_SEEDED',
+      'System',
+      'all',
+      'Populated realistic Pakistani school demo dataset'
+    );
+
+    this.addNotification(
+      'Demo Data Seeded',
+      'Realistic Pakistani school demo students, staff, fees, and question papers loaded for demonstration.',
+      'system'
+    );
+
+    this.saveDatabase();
+  }
+
+  // Reset back to strict zero operational data
+  public resetToZeroData(): void {
+    this.data.students = [];
+    this.data.studentAcademicRecords = [];
+    this.data.admissions = [];
+    this.data.withdrawals = [];
+    this.data.transfers = [];
+    this.data.staff = [];
+    this.data.attendance = [];
+    this.data.exams = [];
+    this.data.examSchedules = [];
+    this.data.marks = [];
+    this.data.feeInvoices = [];
+    this.data.feePayments = [];
+    this.data.questionBank = [];
+    this.data.questionPapers = [];
+    this.data.notifications = [];
+
+    this.logAudit(
+      'usr-admin',
+      'System Administrator',
+      'Super Administrator',
+      'RESET_ZERO_DATA',
+      'System',
+      'all',
+      'Reset system back to strict Zero-Data state'
+    );
+
+    this.saveDatabase();
+  }
+}
+
+export const db = new Database();

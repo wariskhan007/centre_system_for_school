@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Hide scrollbars for cleaner aesthetic */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ============================================================== */
+/* PRINTING MEDIA ENGINE                                           */
+/* ============================================================== */
+@media print {
+  /* When standalone container is injected, hide the main app completely */
+  body.is-printing-active > *:not(#direct-print-standalone-container) {
+    display: none !important;
+  }
+
+  body.is-printing-active #direct-print-standalone-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Default print cleanup */
+  header,
+  aside,
+  button,
+  .print-hidden,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Target modal overlay during native modal print so only printable content prints */
+  .fixed.inset-0 {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Remove max heights and frame shadows during print */
+  .max-h-\[96vh\],
+  .max-h-\[92vh\],
+  .max-h-\[90vh\] {
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
